@@ -303,19 +303,6 @@ export default function TestPage() {
     setConversionsSent([])
   }
 
-  // 获取事件统计
-  const getEventStats = async () => {
-    try {
-      const response = await fetch(`/api/events?shop=${shop}`, { method: 'PUT' })
-      const result = await response.json()
-      if (result.success) {
-        addLog(`📊 事件统计: 总计${result.data.totalEvents}, 购买${result.data.purchaseEvents}, 加购${result.data.addToCartEvents}`)
-      }
-    } catch (error) {
-      addLog('❌ 获取统计失败: ' + (error as Error).message)
-    }
-  }
-
   const eventOptions = [
     { label: '购买转化 (Purchase)', value: 'purchase' },
     { label: '加购转化 (Add to Cart)', value: 'add_to_cart' },
@@ -329,9 +316,9 @@ export default function TestPage() {
           <Banner title="Google Ads 转化追踪测试" tone="info">
             <p>此页面用于测试真实的Google Ads转化追踪功能。请按照以下步骤进行测试：</p>
             <ol>
-              <li>点击"加载Pixel代码"按钮（会自动配置您的真实Google Ads设置）</li>
+              <li>点击&ldquo;加载Pixel代码&rdquo;按钮（会自动配置您的真实Google Ads设置）</li>
               <li>配置测试事件参数</li>
-              <li>点击"发送测试事件"按钮</li>
+              <li>点击&ldquo;发送测试事件&rdquo;按钮</li>
               <li>查看控制台和日志输出验证事件发送</li>
               <li>在浏览器开发者工具Network面板中检查Google Analytics请求</li>
             </ol>
