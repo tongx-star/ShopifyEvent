@@ -1,0 +1,52 @@
+{% comment %}
+Google Ads Pixel 主题应用扩展
+这个块允许商家在主题编辑器中启用/禁用Google Ads转化追踪
+{% endcomment %}
+
+{% if block.settings.enable_pixel %}
+  <script>
+    // Google Ads Pixel已通过Script Tag自动加载
+    // 这里只是为了在主题编辑器中显示状态
+    console.log('Google Ads转化追踪已启用');
+  </script>
+  
+  {% if request.design_mode %}
+    <div style="background: #e8f5e8; padding: 10px; margin: 10px 0; border: 1px solid #4caf50; border-radius: 4px; font-size: 14px;">
+      ✅ Google Ads转化追踪已启用 - 将自动追踪购买、加购和结账事件
+    </div>
+  {% endif %}
+{% else %}
+  {% if request.design_mode %}
+    <div style="background: #fff3cd; padding: 10px; margin: 10px 0; border: 1px solid #ffc107; border-radius: 4px; font-size: 14px;">
+      ⚠️ Google Ads转化追踪已禁用 - 在块设置中启用以开始追踪转化
+    </div>
+  {% endif %}
+{% endif %}
+
+{% schema %}
+{
+  "name": "Google Ads Pixel",
+  "target": "section",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_pixel",
+      "label": "启用Google Ads转化追踪",
+      "default": true,
+      "info": "启用后将自动追踪购买、加购物车和开始结账事件"
+    },
+    {
+      "type": "paragraph",
+      "content": "请确保已在应用设置中配置了有效的Google Ads转化ID和标签。转化追踪代码通过Script Tag自动加载，无需手动添加代码。"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Google Ads Pixel",
+      "settings": {
+        "enable_pixel": true
+      }
+    }
+  ]
+}
+{% endschema %} 

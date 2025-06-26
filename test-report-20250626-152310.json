@@ -1,0 +1,23 @@
+{
+    "testDate": "2025-06-26T07:23:10Z",
+    "testDuration": "4s",
+    "environment": {
+        "baseUrl": "http://localhost:3000",
+        "shop": "demo-shop.myshopify.com",
+        "nodeVersion": "v18.20.8",
+        "platform": "Darwin"
+    },
+    "results": {
+        "configTest": "passed",
+        "pixelGeneration": "passed",
+        "eventSending": "passed",
+        "statsVerification": "passed",
+        "errorHandling": "passed",
+        "performance": "passed"
+    },
+    "metrics": {
+        "configApiTime": "30ms",
+        "eventsApiTime": "26ms",
+        "pixelApiTime": "26ms"
+    }
+}

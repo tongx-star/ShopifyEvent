@@ -1,0 +1,10 @@
+api_version = "2023-10"
+
+[[extensions]]
+type = "theme_app_extension"
+name = "Google Ads Pixel"
+handle = "google-ads-pixel"
+
+[extensions.metafields]
+
+[extensions.settings] 

@@ -29,7 +29,7 @@ export interface ShopifySession {
 }
 
 // 事件数据接口
-export interface EventData {
+export interface EventData extends Record<string, unknown> {
   value?: number;
   currency?: string;
   transaction_id?: string;
@@ -45,8 +45,31 @@ export interface EventData {
   }>;
 }
 
+// 转化事件接口
+export interface ConversionEvent {
+  id: string;
+  shop: string;
+  eventType: 'purchase' | 'add_to_cart' | 'begin_checkout';
+  timestamp: string;
+  value?: number;
+  currency?: string;
+  transactionId?: string;
+  productId?: string;
+  status: 'success' | 'failed' | 'pending';
+  data?: Record<string, unknown>;
+}
+
+// 事件统计接口
+export interface EventStats {
+  totalEvents: number;
+  purchaseEvents: number;
+  addToCartEvents: number;
+  beginCheckoutEvents: number;
+  lastUpdated: string;
+}
+
 // API响应接口
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;

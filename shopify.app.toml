@@ -1,0 +1,30 @@
+# Learn more about configuring your Shopify app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+name = "google-ads-pixel-app"
+client_id = "{{SHOPIFY_API_KEY}}"
+application_url = "{{SHOPIFY_APP_URL}}"
+embedded = true
+
+[access_scopes]
+# https://shopify.dev/docs/api/usage/access-scopes
+scopes = "read_script_tags,write_script_tags,read_orders,read_analytics,write_pixels"
+
+[auth]
+redirect_urls = [
+  "{{SHOPIFY_APP_URL}}/api/auth/callback",
+]
+
+[webhooks]
+api_version = "2023-10"
+
+[pos]
+embedded = false
+
+[[app_extensions]]
+type = "theme_app_extension"
+name = "Google Ads Pixel"
+handle = "google-ads-pixel"
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "{{SHOPIFY_DEV_STORE_URL}}" 
