@@ -32,6 +32,16 @@ interface DiagnosisResult {
   configStatus: 'success' | 'warning' | 'error'
   configMessage: string
   config?: GoogleAdsConfig
+  oauthStatus: 'success' | 'warning' | 'error'
+  oauthMessage: string
+  oauthDetails?: {
+    hasSession: boolean
+    hasAccessToken: boolean
+    sessionDetails?: {
+      scope: string
+      installedAt: string
+    } | null
+  }
   scriptStatus: 'success' | 'warning' | 'error'
   scriptMessage: string
   scriptDetails?: {
@@ -64,6 +74,8 @@ export default function DiagnosisPage() {
     const diagnosis: DiagnosisResult = {
       configStatus: 'error',
       configMessage: '',
+      oauthStatus: 'error',
+      oauthMessage: '',
       scriptStatus: 'error', 
       scriptMessage: '',
       pixelStatus: 'error',
@@ -92,7 +104,31 @@ export default function DiagnosisPage() {
         diagnosis.configMessage = '❌ 配置检查失败: ' + (error as Error).message
       }
 
-      // 2. 检查Script Tag安装状态
+      // 2. 检查OAuth授权状态
+      console.log('🔍 检查OAuth授权状态...')
+      try {
+        const debugResponse = await fetch(`/api/debug?shop=${shop}`)
+        const debugData = await debugResponse.json()
+        
+        if (debugData.success && debugData.data.oauth.hasAccessToken) {
+          diagnosis.oauthStatus = 'success'
+          diagnosis.oauthMessage = '✅ OAuth授权正常，应用已获得访问权限'
+          diagnosis.oauthDetails = debugData.data.oauth
+        } else if (debugData.success && debugData.data.oauth.hasSession) {
+          diagnosis.oauthStatus = 'warning'
+          diagnosis.oauthMessage = '⚠️ 有会话但缺少访问令牌，可能需要重新授权'
+          diagnosis.oauthDetails = debugData.data.oauth
+        } else {
+          diagnosis.oauthStatus = 'error'
+          diagnosis.oauthMessage = '❌ 应用未授权，请重新安装应用'
+          diagnosis.oauthDetails = debugData.success ? debugData.data.oauth : undefined
+        }
+      } catch (error) {
+        diagnosis.oauthStatus = 'error'
+        diagnosis.oauthMessage = '❌ OAuth状态检查失败: ' + (error as Error).message
+      }
+
+      // 3. 检查Script Tag安装状态
       console.log('🔍 检查Script Tag安装状态...')
       try {
         const scriptResponse = await fetch(`/api/install-script?shop=${shop}`)
@@ -111,7 +147,7 @@ export default function DiagnosisPage() {
         diagnosis.scriptMessage = '❌ Script Tag检查失败: ' + (error as Error).message
       }
 
-      // 3. 检查Pixel代码生成
+      // 4. 检查Pixel代码生成
       console.log('🔍 检查Pixel代码生成...')
       try {
         const pixelResponse = await fetch(`/api/pixel?shop=${shop}`)
@@ -133,7 +169,7 @@ export default function DiagnosisPage() {
         diagnosis.pixelMessage = '❌ Pixel代码检查失败: ' + (error as Error).message
       }
 
-      // 4. 检查前端环境
+      // 5. 检查前端环境
       console.log('🔍 检查前端环境...')
       try {
         // 检查是否有Google Analytics
@@ -204,6 +240,26 @@ export default function DiagnosisPage() {
     }
   }, [shop])
 
+  // 重新授权应用
+  const reauthorizeApp = useCallback(() => {
+    if (!shop) return
+    
+    // 构建Shopify OAuth授权URL
+    const clientId = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY || 'bfee0f68be66b95b20d3925bb62bd2a5'
+    const scope = 'read_script_tags,write_script_tags'
+    const redirectUri = `${window.location.origin}/api/auth/callback`
+    
+    const authUrl = `https://${shop}/admin/oauth/authorize?` + new URLSearchParams({
+      client_id: clientId,
+      scope: scope,
+      redirect_uri: redirectUri,
+      state: shop
+    }).toString()
+    
+    // 重定向到授权页面
+    window.location.href = authUrl
+  }, [shop])
+
   const getStatusBadge = (status: 'success' | 'warning' | 'error') => {
     switch (status) {
       case 'success':
@@ -266,6 +322,18 @@ export default function DiagnosisPage() {
                 <List.Item>
                   <Box>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Text as="span" fontWeight="semibold">OAuth授权状态:</Text>
+                      {getStatusBadge(results.oauthStatus)}
+                    </div>
+                    <Text as="p" variant="bodyMd" tone="subdued">
+                      {results.oauthMessage}
+                    </Text>
+                  </Box>
+                </List.Item>
+
+                <List.Item>
+                  <Box>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Text as="span" fontWeight="semibold">Script Tag状态:</Text>
                       {getStatusBadge(results.scriptStatus)}
                     </div>
@@ -314,7 +382,25 @@ export default function DiagnosisPage() {
             <Box paddingBlockStart="400">
               <Text as="h3" variant="headingSm">操作建议</Text>
               <Box paddingBlockStart="200">
-                {results.configStatus !== 'success' && (
+                {results.oauthStatus === 'error' && (
+                  <Banner tone="critical">
+                    <Text as="p">
+                      ❌ 应用授权失败。这通常是因为应用没有正确安装或授权已过期。请重新授权应用。
+                    </Text>
+                  </Banner>
+                )}
+
+                {results.oauthStatus === 'warning' && (
+                  <Box paddingBlockStart="200">
+                    <Banner tone="warning">
+                      <Text as="p">
+                        ⚠️ 授权状态异常。建议重新授权应用以确保正常工作。
+                      </Text>
+                    </Banner>
+                  </Box>
+                )}
+
+                {results.configStatus !== 'success' && results.oauthStatus === 'success' && (
                   <Banner tone="warning">
                     <Text as="p">
                       请先在应用主页完成Google Ads配置，包括转化ID和购买标签。
@@ -322,7 +408,7 @@ export default function DiagnosisPage() {
                   </Banner>
                 )}
                 
-                {results.configStatus === 'success' && results.scriptStatus !== 'success' && (
+                {results.configStatus === 'success' && results.oauthStatus === 'success' && results.scriptStatus !== 'success' && (
                   <Box paddingBlockStart="200">
                     <Banner tone="info">
                       <Text as="p">
@@ -332,7 +418,7 @@ export default function DiagnosisPage() {
                   </Box>
                 )}
 
-                {results.configStatus === 'success' && results.scriptStatus === 'success' && (
+                {results.configStatus === 'success' && results.oauthStatus === 'success' && results.scriptStatus === 'success' && (
                   <Box paddingBlockStart="200">
                     <Banner tone="success">
                       <Text as="p">
@@ -346,7 +432,13 @@ export default function DiagnosisPage() {
 
             <Box paddingBlockStart="400">
               <ButtonGroup>
-                {results.configStatus === 'success' && results.scriptStatus !== 'success' && (
+                {(results.oauthStatus === 'error' || results.oauthStatus === 'warning') && (
+                  <Button variant="primary" tone="critical" onClick={reauthorizeApp}>
+                    重新授权应用
+                  </Button>
+                )}
+
+                {results.configStatus === 'success' && results.oauthStatus === 'success' && results.scriptStatus !== 'success' && (
                   <Button variant="primary" onClick={installScript}>
                     安装追踪脚本
                   </Button>

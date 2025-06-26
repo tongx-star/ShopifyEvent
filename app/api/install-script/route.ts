@@ -27,9 +27,19 @@ export async function POST(request: NextRequest) {
     // 获取商店的访问令牌（这里需要实际的访问令牌）
     const accessToken = await getAccessToken(shop)
     if (!accessToken) {
+      // 提供更详细的错误信息和解决方案
+      const sessionData = await Storage.getCache(`shop:${shop}:session`)
+      console.log(`商店 ${shop} 会话状态:`, sessionData ? '存在但无访问令牌' : '不存在')
+      
       return NextResponse.json({
         success: false,
-        error: '无法获取商店访问令牌，请重新安装应用'
+        error: '无法获取商店访问令牌，请重新安装应用',
+        details: {
+          message: '应用未正确授权或会话已过期',
+          solution: '请重新访问Shopify应用商店安装此应用',
+          hasSession: !!sessionData,
+          shop: shop
+        }
       }, { status: 403 })
     }
 
@@ -109,13 +119,15 @@ export async function GET(request: NextRequest) {
 // 获取访问令牌
 async function getAccessToken(shop: string): Promise<string | null> {
   try {
-    // 从会话存储中获取访问令牌
-    const sessionData = await Storage.getSession(`shop:${shop}`) as { accessToken?: string } | null
+    // 从会话存储中获取访问令牌 - 修复存储键匹配问题
+    const sessionData = await Storage.getCache(`shop:${shop}:session`) as { accessToken?: string } | null
     
     if (sessionData?.accessToken) {
+      console.log(`成功获取商店 ${shop} 的访问令牌`)
       return sessionData.accessToken
     }
     
+    console.log(`商店 ${shop} 未找到访问令牌，可能需要重新安装应用`)
     return null
   } catch (error) {
     console.error('获取访问令牌失败:', error)

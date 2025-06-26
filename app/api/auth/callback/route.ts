@@ -32,15 +32,17 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenResponse.json()
     const { access_token, scope } = tokenData
 
-    // 保存会话数据到存储
-    await Storage.setCache(`shop:${shop}:session`, {
+    // 保存会话数据到存储 - 使用较长的TTL (24小时)
+    const sessionData = {
       shop,
       accessToken: access_token,
       scope,
       installedAt: new Date().toISOString()
-    })
+    }
+    
+    await Storage.setCache(`shop:${shop}:session`, sessionData, 86400) // 24小时
 
-    console.log(`应用已安装到商店: ${shop}`)
+    console.log(`应用已安装到商店: ${shop}, 访问令牌已保存`)
 
     // 重定向到应用主页
     const appUrl = `${SHOPIFY_CONFIG.appUrl}?shop=${shop}`

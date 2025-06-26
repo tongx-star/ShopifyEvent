@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Page, Card, Button, Layout, Text, Banner, TextField, Select } from '@shopify/polaris'
 
 // 模拟Shopify Analytics事件
@@ -106,21 +106,31 @@ export default function TestPage() {
     }
   }
 
-  // 模拟Shopify Analytics环境
-  const setupShopifyAnalytics = () => {
-    if (!window.Shopify) {
-      window.Shopify = {
-        analytics: {
-          subscribe: (event: string, callback: (data: unknown) => void) => {
-            addLog(`🔗 已注册事件监听: ${event}`)
-            // 存储回调函数供后续测试使用
-            ;(window as unknown as ExtendedWindow)[`shopify_${event}_callback`] = callback
-          }
-        }
+  // 添加日志
+  const addLog = useCallback((message: string) => {
+    const timestamp = new Date().toLocaleTimeString()
+    setConversionsSent(prev => [`[${timestamp}] ${message}`, ...prev.slice(0, 19)])
+  }, [])
+
+  // 设置Shopify Analytics模拟
+  const setupShopifyAnalytics = useCallback(() => {
+    const extendedWindow = window as unknown as ExtendedWindow
+    
+    // 模拟 Shopify Analytics
+    extendedWindow.Shopify = extendedWindow.Shopify || {}
+    extendedWindow.Shopify.analytics = extendedWindow.Shopify.analytics || {
+      subscribe: (event: string, callback: (data: unknown) => void) => {
+        addLog(`📝 已订阅事件: ${event}`)
+        extendedWindow[`__shopify_${event}_callback`] = callback
       }
-      addLog('✅ Shopify Analytics环境模拟成功')
     }
-  }
+    
+    addLog('✅ Shopify Analytics环境已准备就绪')
+  }, [addLog])
+
+  useEffect(() => {
+    setupShopifyAnalytics()
+  }, [setupShopifyAnalytics])
 
   // 发送测试事件
   const sendTestEvent = () => {
@@ -244,12 +254,6 @@ export default function TestPage() {
     }
   }
 
-  // 添加日志
-  const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString()
-    setConversionsSent(prev => [`[${timestamp}] ${message}`, ...prev.slice(0, 19)])
-  }
-
   // 清空日志
   const clearLogs = () => {
     setConversionsSent([])
@@ -267,10 +271,6 @@ export default function TestPage() {
       addLog('❌ 获取统计失败: ' + (error as Error).message)
     }
   }
-
-  useEffect(() => {
-    setupShopifyAnalytics()
-  }, [])
 
   const eventOptions = [
     { label: '购买转化 (Purchase)', value: 'purchase' },
