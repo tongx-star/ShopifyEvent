@@ -66,7 +66,7 @@ function generatePixelCode(config: ShopConfig): string {
   
   // 防止重复加载
   if (window.__googleAdsPixelLoaded) {
-    console.log('Google Ads Pixel already loaded');
+    console.log('[Google Ads Pixel] Already loaded');
     return;
   }
   window.__googleAdsPixelLoaded = true;
@@ -99,11 +99,11 @@ function generatePixelCode(config: ShopConfig): string {
     script.async = true;
     script.src = 'https://www.googletagmanager.com/gtag/js?id=' + config.conversionId;
     script.onload = function() {
-      debugLog('gtag script loaded');
+      debugLog('gtag script loaded successfully');
       initializeTracking();
     };
     script.onerror = function() {
-      debugLog('Failed to load gtag script');
+      debugLog('ERROR: Failed to load gtag script');
     };
     
     var firstScript = document.getElementsByTagName('script')[0];
@@ -123,7 +123,7 @@ function generatePixelCode(config: ShopConfig): string {
     gtag('js', new Date());
     gtag('config', config.conversionId);
     
-    debugLog('Google Ads config initialized', config.conversionId);
+    debugLog('Google Ads initialized with conversion ID: ' + config.conversionId);
     
     // 设置Shopify事件监听
     setupShopifyEventListeners(gtag);
@@ -131,117 +131,136 @@ function generatePixelCode(config: ShopConfig): string {
   
   // 设置Shopify事件监听
   function setupShopifyEventListeners(gtag) {
-    if (!window.Shopify || !window.Shopify.analytics) {
-      debugLog('Shopify analytics not available, retrying...');
-      setTimeout(function() {
-        setupShopifyEventListeners(gtag);
-      }, 1000);
-      return;
-    }
+    var maxRetries = 10;
+    var retryCount = 0;
     
-    debugLog('Setting up Shopify event listeners');
-    
-    // 购买完成事件
-    if (enabledEvents.indexOf('purchase') !== -1 && config.purchaseLabel) {
-      window.Shopify.analytics.subscribe('checkout_completed', function(event) {
-        try {
-          var checkout = event.data.checkout;
-          var conversionData = {
-            'send_to': config.conversionId + '/' + config.purchaseLabel,
-            'value': safeParseFloat(checkout.totalPrice.amount),
-            'currency': checkout.currencyCode,
-            'transaction_id': checkout.order ? checkout.order.id : checkout.token
-          };
-          
-          ${googleAds.enhancedConversions ? `
-          // 增强转化数据
-          if (checkout.email) {
-            conversionData.email = checkout.email;
+    function trySetupListeners() {
+      if (!window.Shopify || !window.Shopify.analytics) {
+        retryCount++;
+        if (retryCount < maxRetries) {
+          debugLog('Shopify analytics not available, retrying... (' + retryCount + '/' + maxRetries + ')');
+          setTimeout(trySetupListeners, 1000);
+        } else {
+          debugLog('ERROR: Shopify analytics not available after maximum retries');
+        }
+        return;
+      }
+      
+      debugLog('Setting up Shopify event listeners');
+      
+      // 购买完成事件
+      if (enabledEvents.indexOf('purchase') !== -1 && config.purchaseLabel) {
+        window.Shopify.analytics.subscribe('checkout_completed', function(event) {
+          try {
+            var checkout = event.data.checkout;
+            var conversionData = {
+              'send_to': config.conversionId + '/' + config.purchaseLabel,
+              'value': safeParseFloat(checkout.totalPrice.amount),
+              'currency': checkout.currencyCode,
+              'transaction_id': checkout.order ? checkout.order.id : checkout.token
+            };
+            
+            ${googleAds.enhancedConversions ? `
+            // 增强转化数据
+            if (checkout.email) {
+              conversionData.email = checkout.email;
+            }
+            if (checkout.phone) {
+              conversionData.phone_number = checkout.phone;
+            }
+            ` : ''}
+            
+            gtag('event', 'conversion', conversionData);
+            debugLog('Purchase conversion sent successfully', conversionData);
+            
+            // 记录事件到服务器
+            recordEvent('purchase', conversionData);
+          } catch (error) {
+            debugLog('ERROR: Failed to process purchase event', error);
           }
-          if (checkout.phone) {
-            conversionData.phone_number = checkout.phone;
+        });
+        
+        debugLog('Purchase event listener registered for label: ' + config.purchaseLabel);
+      }
+      
+      ${googleAds.addToCartLabel ? `
+      // 加购事件
+      if (enabledEvents.indexOf('add_to_cart') !== -1) {
+        window.Shopify.analytics.subscribe('product_added_to_cart', function(event) {
+          try {
+            var variant = event.data.productVariant;
+            var conversionData = {
+              'send_to': config.conversionId + '/' + config.addToCartLabel,
+              'value': safeParseFloat(variant.price.amount),
+              'currency': variant.price.currencyCode,
+              'items': [{
+                'item_id': variant.id,
+                'item_name': variant.title,
+                'category': variant.product.type,
+                'quantity': 1,
+                'price': safeParseFloat(variant.price.amount)
+              }]
+            };
+            
+            gtag('event', 'conversion', conversionData);
+            debugLog('Add to cart conversion sent successfully', conversionData);
+            
+            // 记录事件到服务器
+            recordEvent('add_to_cart', conversionData);
+          } catch (error) {
+            debugLog('ERROR: Failed to process add to cart event', error);
           }
-          ` : ''}
-          
-          gtag('event', 'conversion', conversionData);
-          debugLog('Purchase conversion sent', conversionData);
-          
-          // 记录事件到服务器
-          recordEvent('purchase', conversionData);
-        } catch (error) {
-          debugLog('Error processing purchase event', error);
-        }
-      });
+        });
+        
+        debugLog('Add to cart event listener registered for label: ' + config.addToCartLabel);
+      }
+      ` : ''}
+      
+      ${googleAds.beginCheckoutLabel ? `
+      // 开始结账事件
+      if (enabledEvents.indexOf('begin_checkout') !== -1) {
+        window.Shopify.analytics.subscribe('checkout_started', function(event) {
+          try {
+            var checkout = event.data.checkout;
+            var conversionData = {
+              'send_to': config.conversionId + '/' + config.beginCheckoutLabel,
+              'value': safeParseFloat(checkout.totalPrice.amount),
+              'currency': checkout.currencyCode,
+              'items': checkout.lineItems.map(function(item) {
+                return {
+                  'item_id': item.variant.id,
+                  'item_name': item.title,
+                  'category': item.variant.product.type,
+                  'quantity': item.quantity,
+                  'price': safeParseFloat(item.variant.price.amount)
+                };
+              })
+            };
+            
+            gtag('event', 'conversion', conversionData);
+            debugLog('Begin checkout conversion sent successfully', conversionData);
+            
+            // 记录事件到服务器
+            recordEvent('begin_checkout', conversionData);
+          } catch (error) {
+            debugLog('ERROR: Failed to process begin checkout event', error);
+          }
+        });
+        
+        debugLog('Begin checkout event listener registered for label: ' + config.beginCheckoutLabel);
+      }
+      ` : ''}
     }
     
-    ${googleAds.addToCartLabel ? `
-    // 加购事件
-    if (enabledEvents.indexOf('add_to_cart') !== -1) {
-      window.Shopify.analytics.subscribe('product_added_to_cart', function(event) {
-        try {
-          var variant = event.data.productVariant;
-          var conversionData = {
-            'send_to': config.conversionId + '/' + config.addToCartLabel,
-            'value': safeParseFloat(variant.price.amount),
-            'currency': variant.price.currencyCode,
-            'items': [{
-              'item_id': variant.id,
-              'item_name': variant.title,
-              'category': variant.product.type,
-              'quantity': 1,
-              'price': safeParseFloat(variant.price.amount)
-            }]
-          };
-          
-          gtag('event', 'conversion', conversionData);
-          debugLog('Add to cart conversion sent', conversionData);
-          
-          // 记录事件到服务器
-          recordEvent('add_to_cart', conversionData);
-        } catch (error) {
-          debugLog('Error processing add to cart event', error);
-        }
-      });
-    }
-    ` : ''}
-    
-    ${googleAds.beginCheckoutLabel ? `
-    // 开始结账事件
-    if (enabledEvents.indexOf('begin_checkout') !== -1) {
-      window.Shopify.analytics.subscribe('checkout_started', function(event) {
-        try {
-          var checkout = event.data.checkout;
-          var conversionData = {
-            'send_to': config.conversionId + '/' + config.beginCheckoutLabel,
-            'value': safeParseFloat(checkout.totalPrice.amount),
-            'currency': checkout.currencyCode,
-            'items': checkout.lineItems.map(function(item) {
-              return {
-                'item_id': item.variant.id,
-                'item_name': item.title,
-                'category': item.variant.product.type,
-                'quantity': item.quantity,
-                'price': safeParseFloat(item.variant.price.amount)
-              };
-            })
-          };
-          
-          gtag('event', 'conversion', conversionData);
-          debugLog('Begin checkout conversion sent', conversionData);
-          
-          // 记录事件到服务器
-          recordEvent('begin_checkout', conversionData);
-        } catch (error) {
-          debugLog('Error processing begin checkout event', error);
-        }
-      });
-    }
-    ` : ''}
+    trySetupListeners();
   }
   
   // 记录事件到服务器
   function recordEvent(eventType, data) {
-    if (typeof fetch === 'undefined') return;
+    if (typeof fetch === 'undefined') {
+      debugLog('Fetch not available, skipping server event recording');
+      return;
+    }
     
     fetch('/api/events?shop=${config.shop}', {
       method: 'POST',
@@ -253,13 +272,20 @@ function generatePixelCode(config: ShopConfig): string {
         data: data,
         timestamp: new Date().toISOString()
       })
+    }).then(function(response) {
+      if (response.ok) {
+        debugLog('Event recorded to server: ' + eventType);
+      } else {
+        debugLog('Failed to record event to server: ' + response.status);
+      }
     }).catch(function(error) {
-      debugLog('Failed to record event', error);
+      debugLog('Failed to record event to server', error);
     });
   }
   
   // 启动加载流程
   debugLog('Starting Google Ads Pixel initialization');
+  debugLog('Configuration: Conversion ID=' + config.conversionId + ', Purchase Label=' + config.purchaseLabel);
   
   // 检查页面是否已加载
   if (document.readyState === 'loading') {
