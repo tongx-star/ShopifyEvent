@@ -200,7 +200,34 @@ export default function TestPage() {
       return
     }
 
-    let eventData
+    let eventData: {
+      data: {
+        checkout?: {
+          totalPrice: { amount: number }
+          currencyCode: string
+          order?: { id: string }
+          token?: string
+          email?: string
+          phone?: string
+          lineItems?: Array<{
+            variant: {
+              id: string
+              price: { amount: number; currencyCode: string }
+              product: { type: string }
+            }
+            title: string
+            quantity: number
+          }>
+        }
+        productVariant?: {
+          id: string
+          title: string
+          price: { amount: number; currencyCode: string }
+          product: { type: string }
+        }
+      }
+    }
+
     switch (testData.eventType) {
       case 'purchase':
         eventData = {
@@ -247,6 +274,16 @@ export default function TestPage() {
           }
         }
         break
+      default:
+        // 添加默认情况以确保eventData总是被赋值
+        eventData = {
+          data: {
+            checkout: {
+              totalPrice: { amount: 0 },
+              currencyCode: 'USD'
+            }
+          }
+        }
     }
 
     try {
