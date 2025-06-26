@@ -5,7 +5,7 @@ import crypto from 'crypto'
 export const SHOPIFY_CONFIG = {
   apiKey: process.env.SHOPIFY_API_KEY || '',
   apiSecret: process.env.SHOPIFY_API_SECRET || '',
-  scopes: 'read_script_tags,write_script_tags,read_orders,read_analytics',
+  scopes: 'read_script_tags,write_script_tags,read_orders,read_analytics,write_pixels',
   appUrl: process.env.SHOPIFY_APP_URL || 'https://localhost:3000'
 }
 
