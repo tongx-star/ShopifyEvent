@@ -21,6 +21,9 @@ interface ExtendedWindow extends Window {
   [key: string]: unknown
 }
 
+// 存储事件回调的全局变量
+const eventCallbacks: Record<string, ((data: unknown) => void)[]> = {}
+
 export default function TestPage() {
   const [pixelLoaded, setPixelLoaded] = useState(false)
   const [conversionsSent, setConversionsSent] = useState<string[]>([])
@@ -34,19 +37,20 @@ export default function TestPage() {
 
   const shop = 'demo-shop.myshopify.com'
 
-  // 自动配置测试环境
-  const setupTestConfig = async () => {
+  // 自动配置真实的Google Ads环境
+  const setupRealConfig = async () => {
     try {
-      addLog('⚙️ 正在配置测试环境...')
+      addLog('⚙️ 正在设置真实的Google Ads配置...')
       
       const configData = {
         googleAds: {
-          conversionId: "AW-123456789",
-          purchaseLabel: `test_purchase_${Date.now()}`,
-          addToCartLabel: `test_add_to_cart_${Date.now()}`,
-          beginCheckoutLabel: `test_begin_checkout_${Date.now()}`
+          conversionId: "AW-11403892942",
+          purchaseLabel: "zx0XCKPZic0ZEM6x5r0q",
+          addToCartLabel: "",
+          beginCheckoutLabel: "",
+          enhancedConversions: false
         },
-        enabledEvents: ["purchase", "add_to_cart", "begin_checkout"]
+        enabledEvents: ["purchase"]
       }
       
       const response = await fetch(`/api/config?shop=${shop}`, {
@@ -57,8 +61,9 @@ export default function TestPage() {
       
       const result = await response.json()
       if (result.success) {
-        addLog('✅ 测试配置设置成功')
+        addLog('✅ 真实Google Ads配置设置成功')
         addLog(`📋 转化ID: ${result.data.googleAds.conversionId}`)
+        addLog(`📋 购买标签: ${result.data.googleAds.purchaseLabel}`)
         return true
       } else {
         addLog('❌ 配置设置失败: ' + result.error)
@@ -73,36 +78,76 @@ export default function TestPage() {
   // 加载Pixel代码
   const loadPixelCode = async () => {
     try {
-      // 先检查是否有配置，如果没有则自动配置
+      // 先检查是否有正确的配置
       const checkResponse = await fetch(`/api/config?shop=${shop}`)
       const checkResult = await checkResponse.json()
       
-      if (!checkResult.success || !checkResult.data.googleAds?.conversionId) {
-        addLog('⚠️ 未发现配置，开始自动配置...')
-        const configSuccess = await setupTestConfig()
+      const needsRealConfig = !checkResult.success || 
+                             !checkResult.data?.googleAds?.conversionId ||
+                             checkResult.data.googleAds.conversionId !== "AW-11403892942"
+      
+      if (needsRealConfig) {
+        addLog('⚠️ 未发现正确配置，开始设置真实配置...')
+        const configSuccess = await setupRealConfig()
         if (!configSuccess) {
           return
         }
       } else {
-        addLog('✅ 发现已有配置')
+        addLog('✅ 发现正确的Google Ads配置')
+        addLog(`📋 转化ID: ${checkResult.data.googleAds.conversionId}`)
+        addLog(`📋 购买标签: ${checkResult.data.googleAds.purchaseLabel}`)
       }
       
       const response = await fetch(`/api/pixel?shop=${shop}`)
       const pixelCode = await response.text()
       
       if (response.ok) {
+        // 移除已有的Pixel代码
+        const existingScript = document.querySelector('script[data-google-ads-pixel]')
+        if (existingScript) {
+          existingScript.remove()
+        }
+        
         // 创建script标签并执行Pixel代码
         const script = document.createElement('script')
+        script.setAttribute('data-google-ads-pixel', 'true')
         script.textContent = pixelCode
         document.head.appendChild(script)
         
         setPixelLoaded(true)
         addLog('✅ Pixel代码加载成功')
+        addLog(`📊 Pixel代码长度: ${pixelCode.length} 字符`)
+        
+        // 等待一下让Pixel代码完全初始化
+        setTimeout(() => {
+          checkPixelStatus()
+        }, 2000)
       } else {
         addLog('❌ Pixel代码加载失败: ' + pixelCode)
       }
     } catch (error) {
       addLog('❌ 加载Pixel代码出错: ' + (error as Error).message)
+    }
+  }
+
+  // 检查Pixel状态
+  const checkPixelStatus = () => {
+    if (window.gtag) {
+      addLog('✅ Google gtag已准备就绪')
+    } else {
+      addLog('⚠️ Google gtag未找到')
+    }
+    
+    if (window.dataLayer) {
+      addLog(`📊 dataLayer已初始化，当前条目: ${window.dataLayer.length}`)
+    } else {
+      addLog('⚠️ dataLayer未找到')
+    }
+    
+    if (window.__googleAdsPixelLoaded) {
+      addLog('✅ Google Ads Pixel已标记为已加载')
+    } else {
+      addLog('⚠️ Google Ads Pixel加载状态未知')
     }
   }
 
@@ -116,12 +161,20 @@ export default function TestPage() {
   const setupShopifyAnalytics = useCallback(() => {
     const extendedWindow = window as unknown as ExtendedWindow
     
+    // 清空之前的回调
+    Object.keys(eventCallbacks).forEach(key => {
+      eventCallbacks[key] = []
+    })
+    
     // 模拟 Shopify Analytics
     extendedWindow.Shopify = extendedWindow.Shopify || {}
     extendedWindow.Shopify.analytics = extendedWindow.Shopify.analytics || {
       subscribe: (event: string, callback: (data: unknown) => void) => {
-        addLog(`📝 已订阅事件: ${event}`)
-        extendedWindow[`__shopify_${event}_callback`] = callback
+        addLog(`📝 已订阅Shopify事件: ${event}`)
+        if (!eventCallbacks[event]) {
+          eventCallbacks[event] = []
+        }
+        eventCallbacks[event].push(callback)
       }
     }
     
@@ -137,21 +190,23 @@ export default function TestPage() {
     const transactionId = testData.transactionId || `test_${Date.now()}`
     setTestData(prev => ({ ...prev, transactionId }))
 
-    let eventData
-    const callbackKey = `shopify_${getShopifyEventType(testData.eventType)}_callback`
-    const callback = (window as unknown as ExtendedWindow)[callbackKey] as ((data: unknown) => void) | undefined
+    const shopifyEventType = getShopifyEventType(testData.eventType)
+    const callbacks = eventCallbacks[shopifyEventType] || []
 
-    if (!callback) {
-      addLog(`❌ 未找到 ${testData.eventType} 事件的回调函数，请先加载Pixel代码`)
+    if (callbacks.length === 0) {
+      addLog(`❌ 未找到 ${testData.eventType} (${shopifyEventType}) 事件的回调函数`)
+      addLog(`📋 当前已注册的事件: ${Object.keys(eventCallbacks).join(', ')}`)
+      addLog(`💡 请先加载Pixel代码以注册事件监听器`)
       return
     }
 
+    let eventData
     switch (testData.eventType) {
       case 'purchase':
         eventData = {
           data: {
             checkout: {
-              totalPrice: { amount: testData.value },
+              totalPrice: { amount: parseFloat(testData.value) },
               currencyCode: testData.currency,
               order: { id: transactionId },
               token: transactionId,
@@ -167,7 +222,7 @@ export default function TestPage() {
             productVariant: {
               id: testData.productId,
               title: '测试产品',
-              price: { amount: testData.value, currencyCode: testData.currency },
+              price: { amount: parseFloat(testData.value), currencyCode: testData.currency },
               product: { type: '测试分类' }
             }
           }
@@ -177,12 +232,12 @@ export default function TestPage() {
         eventData = {
           data: {
             checkout: {
-              totalPrice: { amount: testData.value },
+              totalPrice: { amount: parseFloat(testData.value) },
               currencyCode: testData.currency,
               lineItems: [{
                 variant: {
                   id: testData.productId,
-                  price: { amount: testData.value, currencyCode: testData.currency },
+                  price: { amount: parseFloat(testData.value), currencyCode: testData.currency },
                   product: { type: '测试分类' }
                 },
                 title: '测试产品',
@@ -195,42 +250,31 @@ export default function TestPage() {
     }
 
     try {
-      callback(eventData)
-      addLog(`📤 发送${testData.eventType}测试事件成功`)
+      addLog(`🚀 准备发送${testData.eventType}事件到 ${callbacks.length} 个监听器`)
+      
+      callbacks.forEach((callback, index) => {
+        try {
+          callback(eventData)
+          addLog(`✅ 回调函数 ${index + 1} 执行成功`)
+        } catch (error) {
+          addLog(`❌ 回调函数 ${index + 1} 执行失败: ${(error as Error).message}`)
+        }
+      })
+      
+      addLog(`📤 ${testData.eventType}测试事件发送完成`)
       addLog(`💰 金额: ${testData.value} ${testData.currency}`)
       addLog(`🆔 交易ID: ${transactionId}`)
       
-      // 记录到服务器
-      recordToServer()
+      // 检查gtag调用
+      setTimeout(() => {
+        if (window.dataLayer && window.dataLayer.length > 0) {
+          const lastEntry = window.dataLayer[window.dataLayer.length - 1]
+          addLog(`📊 最新dataLayer条目: ${JSON.stringify(lastEntry)}`)
+        }
+      }, 100)
+      
     } catch (error) {
       addLog(`❌ 发送事件失败: ${(error as Error).message}`)
-    }
-  }
-
-  // 记录事件到服务器
-  const recordToServer = async () => {
-    try {
-      const response = await fetch(`/api/events?shop=${shop}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventType: testData.eventType,
-          value: parseFloat(testData.value),
-          currency: testData.currency,
-          transactionId: testData.transactionId,
-          productId: testData.productId,
-          data: { test: true, timestamp: new Date().toISOString() }
-        })
-      })
-      
-      const result = await response.json()
-      if (result.success) {
-        addLog('✅ 事件已记录到服务器')
-      } else {
-        addLog('❌ 服务器记录失败: ' + result.error)
-      }
-    } catch (error) {
-      addLog('❌ 服务器通信失败: ' + (error as Error).message)
     }
   }
 
@@ -282,17 +326,17 @@ export default function TestPage() {
     <Page title="Google Ads转化测试工具">
       <Layout>
         <Layout.Section>
-          <Banner title="测试说明" tone="info">
-            <p>此页面用于测试Google Ads转化追踪功能。请按照以下步骤进行测试：</p>
+          <Banner title="Google Ads 转化追踪测试" tone="info">
+            <p>此页面用于测试真实的Google Ads转化追踪功能。请按照以下步骤进行测试：</p>
             <ol>
-              <li>点击加载Pixel代码按钮（会自动配置测试环境）</li>
+              <li>点击"加载Pixel代码"按钮（会自动配置您的真实Google Ads设置）</li>
               <li>配置测试事件参数</li>
-              <li>点击发送测试事件按钮</li>
-              <li>查看控制台和日志输出</li>
-              <li>在浏览器开发者工具中验证网络请求</li>
+              <li>点击"发送测试事件"按钮</li>
+              <li>查看控制台和日志输出验证事件发送</li>
+              <li>在浏览器开发者工具Network面板中检查Google Analytics请求</li>
             </ol>
             <p style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
-              💡 提示：如果是首次使用，系统会自动配置测试用的Google Ads设置
+              🎯 使用真实Google Ads配置: AW-11403892942 / zx0XCKPZic0ZEM6x5r0q
             </p>
           </Banner>
         </Layout.Section>
@@ -302,17 +346,17 @@ export default function TestPage() {
             <div style={{ padding: '20px' }}>
               <Text variant="headingMd" as="h2">1. 环境准备</Text>
               <div style={{ margin: '16px 0', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <Button onClick={setupTestConfig} variant="secondary">
-                  配置测试环境
+                <Button onClick={setupRealConfig} variant="secondary">
+                  配置Google Ads
                 </Button>
                 <Button onClick={loadPixelCode} variant="primary">
                   加载Pixel代码
                 </Button>
+                <Button onClick={checkPixelStatus}>
+                  检查Pixel状态
+                </Button>
                 <Button onClick={checkGtag}>
                   检查Google gtag
-                </Button>
-                <Button onClick={getEventStats}>
-                  获取事件统计
                 </Button>
               </div>
               <Text variant="bodyMd" tone="subdued" as="p">
