@@ -8,7 +8,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:install": "node scripts/test-installation.js",
+    "test:install:prod": "BASE_URL=https://shopify-event.vercel.app node scripts/test-installation.js",
+    "test:install:local": "BASE_URL=http://localhost:3000 node scripts/test-installation.js"
   },
   "dependencies": {
     "@shopify/app-bridge-react": "^4.1.10",

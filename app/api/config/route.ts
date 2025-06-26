@@ -64,6 +64,8 @@ export async function POST(request: NextRequest) {
     // 安装或更新Pixel代码
     await installPixelCode(shop, config)
 
+    console.log(`配置已保存到商店: ${shop}`, config)
+
     return NextResponse.json({
       success: true,
       data: config,
@@ -80,10 +82,14 @@ export async function POST(request: NextRequest) {
 
 // 从请求中获取商店标识
 function getShopFromRequest(request: NextRequest): string | null {
-  // 在实际应用中，这里应该从Shopify的session或JWT token中提取shop信息
-  // 目前为了演示目的，我们从查询参数中获取
-  const shop = request.nextUrl.searchParams.get('shop')
-  return shop || 'demo-shop.myshopify.com' // 默认值用于开发测试
+  // 优先从查询参数获取
+  const shopFromQuery = request.nextUrl.searchParams.get('shop')
+  if (shopFromQuery) {
+    return shopFromQuery
+  }
+  
+  // 如果没有shop参数，返回null而不是默认值
+  return null
 }
 
 // 验证Google Ads配置

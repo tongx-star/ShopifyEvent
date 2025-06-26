@@ -10,7 +10,8 @@ import {
   Button,
   Filters,
   EmptySearchResult,
-  Spinner
+  Spinner,
+  Box
 } from '@shopify/polaris'
 import { ConversionEvent, EventStats } from '@/lib/types'
 
@@ -185,30 +186,38 @@ export default function EventMonitor({ isConfigured }: EventMonitorProps) {
       {/* 统计卡片 */}
       {stats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          <Card>
-            <div style={{ padding: '1rem', textAlign: 'center' }}>
-              <Text as="h3" variant="headingLg">{stats.totalEvents}</Text>
-              <Text as="p" variant="bodyMd" tone="subdued">总事件数</Text>
-            </div>
-          </Card>
-          <Card>
-            <div style={{ padding: '1rem', textAlign: 'center' }}>
-              <Text as="h3" variant="headingLg">{stats.purchaseEvents}</Text>
-              <Text as="p" variant="bodyMd" tone="subdued">购买事件</Text>
-            </div>
-          </Card>
-          <Card>
-            <div style={{ padding: '1rem', textAlign: 'center' }}>
-              <Text as="h3" variant="headingLg">{stats.addToCartEvents}</Text>
-              <Text as="p" variant="bodyMd" tone="subdued">加购事件</Text>
-            </div>
-          </Card>
-          <Card>
-            <div style={{ padding: '1rem', textAlign: 'center' }}>
-              <Text as="h3" variant="headingLg">{stats.beginCheckoutEvents}</Text>
-              <Text as="p" variant="bodyMd" tone="subdued">结账事件</Text>
-            </div>
-          </Card>
+          <Box minWidth="0" maxWidth="100%">
+            <Card>
+              <div style={{ padding: '1rem', textAlign: 'center' }}>
+                <Text as="h3" variant="headingLg">{stats.totalEvents}</Text>
+                <Text as="p" variant="bodyMd" tone="subdued">总事件数</Text>
+              </div>
+            </Card>
+          </Box>
+          <Box minWidth="0" maxWidth="100%">
+            <Card>
+              <div style={{ padding: '1rem', textAlign: 'center' }}>
+                <Text as="h3" variant="headingLg">{stats.purchases}</Text>
+                <Text as="p" variant="bodyMd" tone="subdued">购买事件</Text>
+              </div>
+            </Card>
+          </Box>
+          <Box minWidth="0" maxWidth="100%">
+            <Card>
+              <div style={{ padding: '1rem', textAlign: 'center' }}>
+                <Text as="h3" variant="headingLg">{stats.addToCarts}</Text>
+                <Text as="p" variant="bodyMd" tone="subdued">加购事件</Text>
+              </div>
+            </Card>
+          </Box>
+          <Box minWidth="0" maxWidth="100%">
+            <Card>
+              <div style={{ padding: '1rem', textAlign: 'center' }}>
+                <Text as="h3" variant="headingLg">{stats.beginCheckouts}</Text>
+                <Text as="p" variant="bodyMd" tone="subdued">结账事件</Text>
+              </div>
+            </Card>
+          </Box>
         </div>
       )}
 

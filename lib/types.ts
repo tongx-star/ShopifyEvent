@@ -62,10 +62,10 @@ export interface ConversionEvent {
 // 事件统计接口
 export interface EventStats {
   totalEvents: number;
-  purchaseEvents: number;
-  addToCartEvents: number;
-  beginCheckoutEvents: number;
-  lastUpdated: string;
+  purchases: number;
+  addToCarts: number;
+  beginCheckouts: number;
+  lastEventAt: string | null;
 }
 
 // API响应接口

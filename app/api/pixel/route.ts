@@ -1,64 +1,53 @@
-import { NextRequest } from 'next/server'
-import { ShopConfig } from '@/lib/types'
+import { NextRequest, NextResponse } from 'next/server'
 import { Storage } from '@/lib/storage'
+import { ShopConfig } from '@/lib/types'
 
-// 获取动态Pixel代码
+// 生成Google Ads追踪像素代码
 export async function GET(request: NextRequest) {
   try {
-    const shop = getShopFromRequest(request)
+    const { searchParams } = new URL(request.url)
+    const shop = searchParams.get('shop')
+    
     if (!shop) {
-      return new Response('// 错误: 无效的商店信息', {
+      return new NextResponse('缺少商店参数', { 
         status: 400,
-        headers: {
-          'Content-Type': 'application/javascript',
-          'Cache-Control': 'no-cache'
-        }
+        headers: { 'Content-Type': 'text/plain' }
       })
     }
 
     // 获取商店配置
     const config = await Storage.getShopConfig(shop)
-    if (!config) {
-      return new Response('// 错误: 未找到配置，请先配置Google Ads转化追踪', {
-        status: 404,
-        headers: {
-          'Content-Type': 'application/javascript',
-          'Cache-Control': 'no-cache'
-        }
+    if (!config || !config.googleAds?.conversionId) {
+      return new NextResponse(`
+        console.warn('Google Ads配置未找到，请在应用中完成配置');
+      `, {
+        headers: { 'Content-Type': 'application/javascript' }
       })
     }
 
-    // 生成Pixel代码
+    // 生成追踪代码
     const pixelCode = generatePixelCode(config)
     
-    // 记录代码访问
-    await recordPixelAccess(shop)
-
-    return new Response(pixelCode, {
-      status: 200,
+    // 记录代码生成
+    console.log(`为商店 ${shop} 生成Pixel代码，转化ID: ${config.googleAds.conversionId}`)
+    
+    return new NextResponse(pixelCode, {
       headers: {
         'Content-Type': 'application/javascript',
-        'Cache-Control': 'public, max-age=300', // 缓存5分钟
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET',
+        'Cache-Control': 'public, max-age=300', // 5分钟缓存
+        'Access-Control-Allow-Origin': '*'
       }
     })
+
   } catch (error) {
     console.error('生成Pixel代码失败:', error)
-    return new Response('// 错误: 服务器内部错误', {
+    return new NextResponse(`
+      console.error('Google Ads Pixel加载失败: ${error instanceof Error ? error.message : '未知错误'}');
+    `, {
       status: 500,
-      headers: {
-        'Content-Type': 'application/javascript',
-        'Cache-Control': 'no-cache'
-      }
+      headers: { 'Content-Type': 'application/javascript' }
     })
   }
-}
-
-// 从请求中获取商店标识
-function getShopFromRequest(request: NextRequest): string | null {
-  const shop = request.nextUrl.searchParams.get('shop')
-  return shop || 'demo-shop.myshopify.com'
 }
 
 // 生成Google Ads Pixel代码
@@ -66,8 +55,7 @@ function generatePixelCode(config: ShopConfig): string {
   const { googleAds } = config
   const timestamp = new Date().toISOString()
   
-  return `
-/*!
+  return `/*!
  * Google Ads 转化追踪代码
  * 生成时间: ${timestamp}
  * 转化ID: ${googleAds.conversionId}
@@ -84,7 +72,7 @@ function generatePixelCode(config: ShopConfig): string {
   window.__googleAdsPixelLoaded = true;
   
   var config = ${JSON.stringify(googleAds, null, 2)};
-  var enabledEvents = ${JSON.stringify(config.enabledEvents)};
+  var enabledEvents = ${JSON.stringify(config.enabledEvents || ['purchase'])};
   
   // 工具函数
   function debugLog(message, data) {
@@ -261,57 +249,25 @@ function generatePixelCode(config: ShopConfig): string {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        eventType: eventType,
-        value: data.value,
-        currency: data.currency,
-        transactionId: data.transaction_id,
-        data: data
+        event: eventType,
+        data: data,
+        timestamp: new Date().toISOString()
       })
     }).catch(function(error) {
       debugLog('Failed to record event', error);
     });
   }
   
-  // 启动加载过程
+  // 启动加载流程
+  debugLog('Starting Google Ads Pixel initialization');
+  
+  // 检查页面是否已加载
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadGtag);
   } else {
     loadGtag();
   }
   
-  debugLog('Google Ads Pixel initialized');
-})();
-`.trim()
-}
-
-// 记录Pixel代码访问
-async function recordPixelAccess(shop: string): Promise<void> {
-  try {
-    await Storage.logAccess(shop, 'pixel_access', {
-      userAgent: 'unknown', // 在实际应用中可以从headers获取
-      timestamp: new Date().toISOString()
-    })
-    
-    // 增加访问计数
-    await incrementAccessCount(shop)
-  } catch (error) {
-    console.error('记录Pixel访问失败:', error)
-  }
-}
-
-// 增加访问计数
-async function incrementAccessCount(shop: string): Promise<number> {
-  try {
-    const key = `pixel_access_count:${shop}`
-    const currentCount = await Storage.getCache<number>(key) || 0
-    const newCount = currentCount + 1
-    
-    // 缓存1小时
-    await Storage.setCache(key, newCount, 3600)
-    
-    return newCount
-  } catch (error) {
-    console.error('更新访问计数失败:', error)
-    return 0
-  }
+  debugLog('Google Ads Pixel setup complete');
+})();`
 } 
