@@ -3,37 +3,42 @@ api_version = "2023-10"
 [[extensions]]
 type = "web_pixel_extension"
 name = "Google Ads Conversion Tracking"
+handle = "google-ads-conversion-tracking"
+runtime_context = "strict"
 
-[extensions.metafields]
-namespace = "google_ads_pixel"
+[extensions.customer_privacy]
+analytics = true
+marketing = true
+preferences = false
+sale_of_data = "enabled"
 
 [extensions.settings]
-[[extensions.settings.fields]]
-key = "conversion_id"
-type = "single_line_text_field"
+type = "object"
+
+[extensions.settings.fields.conversion_id]
 name = "Google Ads Conversion ID"
 description = "Your Google Ads conversion ID (AW-xxxxxxxxx)"
-
-[[extensions.settings.fields]]
-key = "purchase_label"
 type = "single_line_text_field"
+validations = [
+  { name = "min", value = "1" }
+]
+
+[extensions.settings.fields.purchase_label]
 name = "Purchase Conversion Label"
 description = "Conversion label for purchase events"
-
-[[extensions.settings.fields]]
-key = "add_to_cart_label"
 type = "single_line_text_field"
+
+[extensions.settings.fields.add_to_cart_label]
 name = "Add to Cart Label"
 description = "Conversion label for add to cart events (optional)"
-
-[[extensions.settings.fields]]
-key = "begin_checkout_label"
 type = "single_line_text_field"
+
+[extensions.settings.fields.begin_checkout_label]
 name = "Begin Checkout Label"
 description = "Conversion label for begin checkout events (optional)"
+type = "single_line_text_field"
 
-[[extensions.settings.fields]]
-key = "enhanced_conversions"
-type = "boolean"
+[extensions.settings.fields.enhanced_conversions]
 name = "Enhanced Conversions"
-description = "Enable enhanced conversions with customer data" 
+description = "Enable enhanced conversions with customer data"
+type = "boolean" 

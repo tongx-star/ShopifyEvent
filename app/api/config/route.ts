@@ -43,7 +43,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    console.log('接收到的请求数据:', JSON.stringify(body, null, 2))
+    
     const { googleAds } = body
+
+    // 检查googleAds是否存在
+    if (!googleAds) {
+      return NextResponse.json({
+        success: false,
+        error: '缺少Google Ads配置数据'
+      } as ApiResponse, { status: 400 })
+    }
 
     // 验证Google Ads配置
     const validationError = validateGoogleAdsConfig(googleAds)
@@ -85,7 +95,11 @@ function getShopFromRequest(request: NextRequest): string | null {
 }
 
 // 验证Google Ads配置
-function validateGoogleAdsConfig(config: GoogleAdsConfig): string | null {
+function validateGoogleAdsConfig(config: GoogleAdsConfig | null | undefined): string | null {
+  if (!config) {
+    return 'Google Ads配置不能为空'
+  }
+
   if (!config.conversionId) {
     return '转化ID不能为空'
   }

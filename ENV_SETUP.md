@@ -1,4 +1,144 @@
-# 环境变量配置指南
+# 🔧 环境配置指南
+
+## 📋 问题解决
+
+### 问题1：Shopify CLI配置错误
+```
+No app with client ID `{{SHOPIFY_API_KEY}}` found
+```
+
+**解决方案**：创建 `.env.local` 文件并配置正确的环境变量
+
+### 问题2：配置API数据格式错误
+```
+TypeError: Cannot read properties of undefined (reading 'conversionId')
+```
+
+**解决方案**：已修复API验证逻辑，增加了空值检查
+
+## 🚀 环境变量配置
+
+### 1. 创建 `.env.local` 文件
+
+在项目根目录创建 `.env.local` 文件：
+
+```bash
+# 在项目根目录运行
+touch .env.local
+```
+
+### 2. 配置环境变量
+
+将以下内容添加到 `.env.local` 文件中：
+
+```env
+# Shopify App 配置
+SHOPIFY_API_KEY=your_api_key_here
+SHOPIFY_API_SECRET=your_api_secret_here
+SHOPIFY_APP_URL=http://localhost:3002
+SHOPIFY_DEV_STORE_URL=your-dev-store.myshopify.com
+
+# 数据库配置 (开发环境使用内存存储)
+NODE_ENV=development
+
+# Vercel KV (生产环境)
+# KV_REST_API_URL=your_kv_url
+# KV_REST_API_TOKEN=your_kv_token
+
+# OAuth配置
+SHOPIFY_SCOPES=read_script_tags,write_script_tags,read_orders,read_analytics,write_pixels
+```
+
+### 3. 获取Shopify API密钥
+
+#### 方法1：通过Shopify合作伙伴后台
+1. 访问 [Shopify合作伙伴后台](https://partners.shopify.com/)
+2. 登录您的账户
+3. 点击 "应用" → "创建应用"
+4. 选择 "公共应用"
+5. 填写应用信息
+6. 获取 API密钥 和 API密钥(secret)
+
+#### 方法2：使用Shopify CLI自动配置
+```bash
+# 重置并重新配置
+shopify app dev --reset
+
+# 这会引导您：
+# 1. 登录Shopify合作伙伴账户
+# 2. 创建新应用或选择现有应用
+# 3. 自动生成配置文件
+```
+
+## 🔧 快速修复步骤
+
+### 步骤1：修复API错误（已完成）
+API验证逻辑已修复，现在会正确处理空值。
+
+### 步骤2：配置Shopify CLI
+
+```bash
+# 方法1：使用reset重新配置
+shopify app dev --reset
+
+# 方法2：手动配置环境变量
+# 1. 创建 .env.local 文件
+# 2. 添加上述环境变量
+# 3. 替换为您的实际值
+```
+
+### 步骤3：验证修复
+
+```bash
+# 1. 重启开发服务器
+npm run dev
+
+# 2. 测试配置API（在新终端）
+curl -X POST "http://localhost:3002/api/config?shop=test-shop.myshopify.com" \
+  -H "Content-Type: application/json" \
+  -d '{"googleAds":{"conversionId":"AW-123456789","purchaseLabel":"purchase_test","addToCartLabel":"cart_test","beginCheckoutLabel":"checkout_test","enhancedConversions":true}}'
+
+# 3. 应该返回成功响应
+```
+
+## 📝 当前应用状态
+
+### ✅ 已修复：
+- [x] API验证逻辑错误
+- [x] 空值检查问题
+- [x] 错误处理改进
+
+### ⏳ 需要配置：
+- [ ] Shopify API密钥
+- [ ] 开发商店URL
+- [ ] 环境变量设置
+
+### 🎯 推荐的测试流程
+
+由于Shopify CLI配置较复杂，建议使用以下简化流程：
+
+1. **跳过Shopify CLI**：暂时不使用 `shopify app dev`
+2. **使用独立测试**：使用 `pixel-test.html` 页面测试功能
+3. **API端点测试**：使用curl命令验证后端功能
+4. **准备上架**：功能验证后直接准备应用商店提交
+
+## 🚀 立即可用的解决方案
+
+### 选项1：继续使用当前设置
+您的应用API已经正常工作，可以：
+- 使用浏览器访问 `http://localhost:3002`
+- 配置Google Ads转化ID和标签
+- 使用 `pixel-test.html` 测试转化事件
+
+### 选项2：完整配置Shopify CLI
+如果需要在真实Shopify环境测试：
+- 获取Shopify API密钥
+- 配置环境变量
+- 使用 `shopify app dev --reset`
+
+## 💡 建议
+
+对于您的情况，我建议先使用**选项1**验证应用功能，然后再考虑是否需要完整的Shopify CLI配置。这样可以更快地验证您的Google Ads转化追踪功能是否正常工作。
 
 ## 📋 必需的环境变量
 
