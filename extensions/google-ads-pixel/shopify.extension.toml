@@ -1,10 +1,39 @@
 api_version = "2023-10"
 
 [[extensions]]
-type = "theme_app_extension"
-name = "Google Ads Pixel"
-handle = "google-ads-pixel"
+type = "web_pixel_extension"
+name = "Google Ads Conversion Tracking"
 
 [extensions.metafields]
+namespace = "google_ads_pixel"
 
-[extensions.settings] 
+[extensions.settings]
+[[extensions.settings.fields]]
+key = "conversion_id"
+type = "single_line_text_field"
+name = "Google Ads Conversion ID"
+description = "Your Google Ads conversion ID (AW-xxxxxxxxx)"
+
+[[extensions.settings.fields]]
+key = "purchase_label"
+type = "single_line_text_field"
+name = "Purchase Conversion Label"
+description = "Conversion label for purchase events"
+
+[[extensions.settings.fields]]
+key = "add_to_cart_label"
+type = "single_line_text_field"
+name = "Add to Cart Label"
+description = "Conversion label for add to cart events (optional)"
+
+[[extensions.settings.fields]]
+key = "begin_checkout_label"
+type = "single_line_text_field"
+name = "Begin Checkout Label"
+description = "Conversion label for begin checkout events (optional)"
+
+[[extensions.settings.fields]]
+key = "enhanced_conversions"
+type = "boolean"
+name = "Enhanced Conversions"
+description = "Enable enhanced conversions with customer data" 

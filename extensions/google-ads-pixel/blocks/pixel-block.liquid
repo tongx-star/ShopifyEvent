@@ -1,18 +1,17 @@
 {% comment %}
-Google Ads Pixel 主题应用扩展
+Google Ads Pixel Web Pixels扩展
 这个块允许商家在主题编辑器中启用/禁用Google Ads转化追踪
 {% endcomment %}
 
 {% if block.settings.enable_pixel %}
   <script>
-    // Google Ads Pixel已通过Script Tag自动加载
-    // 这里只是为了在主题编辑器中显示状态
-    console.log('Google Ads转化追踪已启用');
+    // Google Ads转化追踪通过Web Pixels扩展自动处理
+    console.log('Google Ads转化追踪已启用 - Web Pixels API');
   </script>
   
   {% if request.design_mode %}
     <div style="background: #e8f5e8; padding: 10px; margin: 10px 0; border: 1px solid #4caf50; border-radius: 4px; font-size: 14px;">
-      ✅ Google Ads转化追踪已启用 - 将自动追踪购买、加购和结账事件
+      ✅ Google Ads转化追踪已启用 - 基于Web Pixels API自动追踪购买、加购和结账事件
     </div>
   {% endif %}
 {% else %}
@@ -33,11 +32,11 @@ Google Ads Pixel 主题应用扩展
       "id": "enable_pixel",
       "label": "启用Google Ads转化追踪",
       "default": true,
-      "info": "启用后将自动追踪购买、加购物车和开始结账事件"
+      "info": "启用后将通过Web Pixels API自动追踪购买、加购物车和开始结账事件"
     },
     {
       "type": "paragraph",
-      "content": "请确保已在应用设置中配置了有效的Google Ads转化ID和标签。转化追踪代码通过Script Tag自动加载，无需手动添加代码。"
+      "content": "请确保已在应用设置中配置了有效的Google Ads转化ID和标签，并在Shopify管理后台的"设置 → 客户事件"中启用了Web Pixels扩展。"
     }
   ],
   "presets": [

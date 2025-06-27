@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ShopConfig, GoogleAdsConfig, ApiResponse } from '@/lib/types'
 import { Storage } from '@/lib/storage'
 
+// 强制动态路由
+export const dynamic = 'force-dynamic'
+
 // 获取商店配置
 export async function GET(request: NextRequest) {
   try {
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { googleAds, enabledEvents } = body
+    const { googleAds } = body
 
     // 验证Google Ads配置
     const validationError = validateGoogleAdsConfig(googleAds)
@@ -54,22 +57,18 @@ export async function POST(request: NextRequest) {
     const config: ShopConfig = {
       shop,
       googleAds,
-      enabledEvents: enabledEvents || ['purchase'],
       updatedAt: new Date().toISOString()
     }
 
     // 保存配置到存储
     await Storage.setShopConfig(shop, config)
 
-    // 安装或更新Pixel代码
-    await installPixelCode(shop, config)
-
-    console.log(`配置已保存到商店: ${shop}`, config)
+    console.log(`配置已保存到商店: ${shop}`)
 
     return NextResponse.json({
       success: true,
       data: config,
-      message: '配置保存成功，转化追踪已启用'
+      message: '配置保存成功，请在Shopify管理后台的"设置 > 客户事件"中配置Web Pixels扩展'
     } as ApiResponse<ShopConfig>)
   } catch (error) {
     console.error('保存配置失败:', error)
@@ -82,14 +81,7 @@ export async function POST(request: NextRequest) {
 
 // 从请求中获取商店标识
 function getShopFromRequest(request: NextRequest): string | null {
-  // 优先从查询参数获取
-  const shopFromQuery = request.nextUrl.searchParams.get('shop')
-  if (shopFromQuery) {
-    return shopFromQuery
-  }
-  
-  // 如果没有shop参数，返回null而不是默认值
-  return null
+  return request.nextUrl.searchParams.get('shop')
 }
 
 // 验证Google Ads配置
@@ -107,88 +99,4 @@ function validateGoogleAdsConfig(config: GoogleAdsConfig): string | null {
   }
 
   return null
-}
-
-// 安装Pixel代码到Shopify商店
-async function installPixelCode(shop: string, config: ShopConfig): Promise<void> {
-  try {
-    // 生成Pixel代码
-    const pixelCode = generatePixelCode(config)
-    
-    // 这里应该调用Shopify API来安装Script Tag
-    // 目前为了演示，我们只是记录到存储
-    await Storage.setCache(`shop:${shop}:pixel`, {
-      code: pixelCode,
-      installedAt: new Date().toISOString(),
-      status: 'active'
-    })
-    
-    console.log(`Pixel代码已为商店 ${shop} 安装完成`)
-  } catch (error) {
-    console.error('安装Pixel代码失败:', error)
-    throw error
-  }
-}
-
-// 生成Google Ads Pixel代码
-function generatePixelCode(config: ShopConfig): string {
-  const { googleAds } = config
-  
-  return `
-(function() {
-  // Google Ads 转化追踪代码
-  // 转化ID: ${googleAds.conversionId}
-  
-  // 加载Google Ads gtag
-  var script = document.createElement('script');
-  script.async = true;
-  script.src = 'https://www.googletagmanager.com/gtag/js?id=${googleAds.conversionId}';
-  document.head.appendChild(script);
-  
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', '${googleAds.conversionId}');
-  
-  // 监听Shopify Analytics事件
-  if (window.Shopify && window.Shopify.analytics) {
-    // 购买完成事件
-    window.Shopify.analytics.subscribe('checkout_completed', function(event) {
-      var checkout = event.data.checkout;
-      gtag('event', 'conversion', {
-        'send_to': '${googleAds.conversionId}/${googleAds.purchaseLabel}',
-        'value': parseFloat(checkout.totalPrice.amount),
-        'currency': checkout.currencyCode,
-        'transaction_id': checkout.order ? checkout.order.id : checkout.token
-      });
-    });
-    
-    ${googleAds.addToCartLabel ? `
-    // 加购事件
-    window.Shopify.analytics.subscribe('product_added_to_cart', function(event) {
-      var variant = event.data.productVariant;
-      gtag('event', 'conversion', {
-        'send_to': '${googleAds.conversionId}/${googleAds.addToCartLabel}',
-        'value': parseFloat(variant.price.amount),
-        'currency': variant.price.currencyCode
-      });
-    });
-    ` : ''}
-    
-    ${googleAds.beginCheckoutLabel ? `
-    // 开始结账事件
-    window.Shopify.analytics.subscribe('checkout_started', function(event) {
-      var checkout = event.data.checkout;
-      gtag('event', 'conversion', {
-        'send_to': '${googleAds.conversionId}/${googleAds.beginCheckoutLabel}',
-        'value': parseFloat(checkout.totalPrice.amount),
-        'currency': checkout.currencyCode
-      });
-    });
-    ` : ''}
-  }
-  
-  console.log('Google Ads转化追踪已启用');
-})();
-`.trim()
 } 

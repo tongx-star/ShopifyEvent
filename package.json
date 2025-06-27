@@ -1,7 +1,7 @@
 {
   "name": "google-ads-pixel-app",
-  "version": "1.0.0",
-  "description": "Shopify Google Ads转化追踪插件",
+  "version": "2.0.0",
+  "description": "基于Shopify Web Pixels API的Google Ads转化追踪应用",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,15 +17,13 @@
     "@shopify/app-bridge-react": "^4.1.10",
     "@shopify/polaris": "^12.27.0",
     "@shopify/shopify-api": "^8.1.1",
+    "@shopify/web-pixels-extension": "^0.3.0",
     "@vercel/kv": "^1.0.1",
-    "axios": "^1.10.0",
-    "jsonwebtoken": "^9.0.2",
     "next": "^14.2.30",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
@@ -36,7 +34,7 @@
   "keywords": [
     "shopify",
     "google-ads",
-    "pixel",
+    "web-pixels",
     "conversion-tracking",
     "nextjs",
     "shopify-app"
